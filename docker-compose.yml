@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: downtime-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-downtime}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-downtime}
+      POSTGRES_DB: ${POSTGRES_DB:-downtime}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-downtime} -d ${POSTGRES_DB:-downtime}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: downtime-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 主机名 db 即上面的数据库服务
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-downtime}:${POSTGRES_PASSWORD:-downtime}@db:5432/${POSTGRES_DB:-downtime}
+      HOST: 0.0.0.0
+      PORT: "8080"
+    ports:
+      - "${API_PORT:-8080}:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
